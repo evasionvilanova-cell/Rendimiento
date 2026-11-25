@@ -12,21 +12,33 @@ export function hasCoach() {
 
 /** Gemini (Google AI Studio) tiene un nivel gratuito con límites de peticiones. */
 async function askGemini(system: string, messages: ChatMsg[]) {
-  const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY as string, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: messages.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-      generationConfig: { maxOutputTokens: 1500 },
-    }),
-    cache: 'no-store',
+  // Si un modelo está saturado (503) se reintenta y se prueba con otro más ligero
+  const models = [process.env.GEMINI_MODEL || 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents: messages.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+    generationConfig: { maxOutputTokens: 1500 },
   });
-  if (res.status === 429) throw new Error('Has llegado al límite gratuito de la IA de Google por ahora. Prueba otra vez en un rato.');
-  if (!res.ok) throw new Error(`La IA respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  return (json.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim() || 'No he podido generar una respuesta.';
+  let last = '';
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY as string, 'content-type': 'application/json' },
+        body,
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        return (json.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim() || 'No he podido generar una respuesta.';
+      }
+      last = `${res.status}`;
+      if (res.status === 429) throw new Error('Has llegado al límite gratuito de la IA de Google por ahora. Prueba otra vez en un rato.');
+      if (res.status !== 503 && res.status !== 500) throw new Error(`La IA respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  throw new Error(`La IA de Google está saturada ahora mismo (${last}). Vuelve a preguntar en un minuto.`);
 }
 
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
