@@ -5,6 +5,7 @@ import { addDays, hm, weekdayShort } from '@/lib/dates';
 import { plannedTssByDay, projectLoad } from '@/lib/plan';
 import TabBar from '@/components/TabBar';
 import RaceCard from '@/components/RaceCard';
+import PlanUpload from '@/components/PlanUpload';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,8 @@ export default async function Semana() {
         </div>
       </div>
       {data.demo && <div className="banner">Estás viendo datos de ejemplo.</div>}
+
+      <PlanUpload />
 
       <div className="tiles">
         <div className="card tile"><span className="small muted">TSS hecho</span><span className="v">{Math.round(doneTss)}</span><span className="small muted">{hm(doneSecs)} entrenando</span></div>

@@ -101,3 +101,17 @@ export async function getPowerCurves(curves: string[], type = 'Ride'): Promise<P
     watts: ((c.watts || c.values) as number[]) || [],
   }));
 }
+
+export type NewEvent = { start_date_local: string; category: 'WORKOUT'; type: string; name: string; description?: string; moving_time?: number; external_id?: string };
+
+/** Crea entrenos en el calendario (intervals.icu los manda a Garmin). */
+export async function createEvents(events: NewEvent[]) {
+  const res = await fetch(`${BASE}/athlete/${athlete()}/events/bulk`, {
+    method: 'POST',
+    headers: { Authorization: auth(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(events),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`intervals.icu respondió ${res.status} al crear los entrenos: ${(await res.text()).slice(0, 200)}`);
+  return res.json() as Promise<PlannedEvent[]>;
+}
