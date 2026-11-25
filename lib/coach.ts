@@ -1,5 +1,6 @@
 import { loadData } from './data';
 import { coachContext } from './summary';
+import { COACH_KNOWLEDGE } from './coach-knowledge';
 
 export type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
@@ -37,6 +38,7 @@ export async function askCoach(messages: ChatMsg[]): Promise<string> {
     'Respondes en español, de forma directa y práctica, en pocas frases o una lista corta. Basa tus consejos en sus datos reales, que tienes abajo, y di qué dato te lleva a cada conclusión.',
     'No inventes datos que no aparecen. Si falta información, dilo. Si describe dolor fuerte, síntomas de enfermedad o algo médico, recomiéndale consultar a un profesional sanitario.',
     'Sobre nutrición, da orientación general y recuérdale seguir la pauta de su nutricionista.',
+    COACH_KNOWLEDGE,
     '',
     '=== SUS DATOS ===',
     coachContext(data),
