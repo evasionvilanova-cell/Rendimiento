@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
+// Muestra negritas (**así**) y cursivas (*así*) de las respuestas
+function Rich({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith('**') && p.endsWith('**') ? <strong key={i}>{p.slice(2, -2)}</strong> : p.startsWith('*') && p.endsWith('*') && p.length > 2 ? <em key={i}>{p.slice(1, -1)}</em> : <span key={i}>{p.replace(/^- /gm, '• ')}</span>,
+      )}
+    </>
+  );
+}
+
 const SUGGESTIONS = ['¿Hago las series hoy o mejor mañana?', '¿Por qué me ha bajado el HRV?', '¿Cómo voy para la carrera?', '¿Qué tal ha ido la semana?'];
 
 export default function CoachChat({ enabled }: { enabled: boolean }) {
@@ -68,7 +80,7 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
       )}
       {msgs.map((m, i) => (
         <div key={i} className="card" style={{ background: m.role === 'user' ? '#262A31' : '#181B20', alignSelf: m.role === 'user' ? 'flex-end' : 'stretch', maxWidth: m.role === 'user' ? '85%' : undefined, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.5 }}>
-          {m.content}
+          {m.role === 'assistant' ? <Rich text={m.content} /> : m.content}
         </div>
       ))}
       {busy && <span className="small muted">Pensando…</span>}
