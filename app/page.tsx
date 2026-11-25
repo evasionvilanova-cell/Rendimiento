@@ -18,7 +18,8 @@ const TAGCOLOR = { verde: '#4ADE80', amarillo: '#F5B83D', rojo: '#F87171' } as c
 
 export default async function Hoy() {
   await requireAuth();
-  const [data, menu] = await Promise.all([loadData(), getPautiaToday()]);
+  const data = await loadData();
+  const menu = await getPautiaToday(data);
   const t = computeToday(data.wellness, data.activities, data.today);
   const w = data.wellness[data.wellness.length - 1];
   const name = process.env.ATHLETE_NAME || 'Xavi';
@@ -180,7 +181,11 @@ export default async function Hoy() {
               );
             })}
             {!Object.keys(menu.comidas).length && <span style={{ fontSize: 14, color: '#C3C7CE' }}>Aún no hay menú para hoy en Pautia.</span>}
-            {menu.tipo && planTss > 0 && <span className="small muted">Tu entreno de hoy: {dayType} ({Math.round(planTss)} TSS). Comprueba que el tipo de día de Pautia encaja.</span>}
+            {menu.elegido ? (
+              <span className="small muted">Esta semana no está generada en Pautia: tipo de día elegido según tu entreno. {menu.elegido}</span>
+            ) : (
+              menu.tipo && planTss > 0 && <span className="small muted">Tu entreno de hoy: {dayType} ({Math.round(planTss)} TSS). Comprueba que el tipo de día de Pautia encaja.</span>
+            )}
             <a href={menu.enlace} style={{ fontSize: 14, fontWeight: 600 }}>Abrir en Pautia (alternativas y recetas) →</a>
           </>
         ) : (

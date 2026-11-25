@@ -45,6 +45,7 @@ export type Activity = {
 export type PlannedEvent = {
   id: number | string;
   category?: string;
+  type?: string;
   name?: string;
   description?: string;
   start_date_local: string;

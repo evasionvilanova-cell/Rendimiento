@@ -54,7 +54,8 @@ async function askGemini(system: string, messages: ChatMsg[]) {
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
 export async function askCoach(messages: ChatMsg[], workoutId?: string): Promise<string> {
   if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir GEMINI_API_KEY (gratis) o ANTHROPIC_API_KEY en Vercel.';
-  const [data, profile, menu] = await Promise.all([loadData(), getProfile(), getPautiaToday()]);
+  const [data, profile] = await Promise.all([loadData(), getProfile()]);
+  const menu = await getPautiaToday(data);
   let workoutTxt = '';
   if (workoutId) {
     const { loadWorkout, describeWorkout } = await import('./analyze');
