@@ -5,6 +5,7 @@ import TabBar from '@/components/TabBar';
 import RaceCard from '@/components/RaceCard';
 import { computeToday, fmtH, fmtSigned } from '@/lib/scores';
 import { computeAlerts } from '@/lib/alerts';
+import { getPautiaToday, MEALS } from '@/lib/pautia';
 import { hm, longDate, shortDate } from '@/lib/dates';
 import Ring from '@/components/Ring';
 import CheckIn from '@/components/CheckIn';
@@ -17,7 +18,7 @@ const TAGCOLOR = { verde: '#4ADE80', amarillo: '#F5B83D', rojo: '#F87171' } as c
 
 export default async function Hoy() {
   await requireAuth();
-  const data = await loadData();
+  const [data, menu] = await Promise.all([loadData(), getPautiaToday()]);
   const t = computeToday(data.wellness, data.activities, data.today);
   const w = data.wellness[data.wellness.length - 1];
   const name = process.env.ATHLETE_NAME || 'Xavi';
@@ -40,7 +41,7 @@ export default async function Hoy() {
         : t.status === 'verde'
           ? 'Sugerencia: adelante, hoy puedes apretar en los bloques de calidad.'
           : null;
-  const dayType = planTss >= 120 ? 'duro' : planTss >= 60 ? 'medio' : planTss > 0 ? 'suave' : 'de descanso';
+  const dayType = planTss >= 120 ? 'duro' : planTss >= 60 ? 'medio' : planTss > 0 ? 'suave' : data.planned.length ? 'de entreno' : 'de descanso';
 
   const initial: Record<string, number> = {};
   (['soreness', 'fatigue', 'stress', 'motivation'] as const).forEach((k) => {
@@ -162,11 +163,32 @@ export default async function Hoy() {
       </section>
 
       <section className="card stack-sm">
-        <h3>Nutrición de hoy</h3>
-        <span style={{ fontSize: 14, color: '#C3C7CE' }}>
-          Día {dayType} según tu entreno. Sigue la pauta de tu nutricionista para un día {dayType === 'de descanso' ? 'de descanso' : dayType}.
-        </span>
-        {process.env.NUTRITION_URL && <a href={process.env.NUTRITION_URL} style={{ fontSize: 14, fontWeight: 600 }}>Ver el menú del día →</a>}
+        <div className="row">
+          <h3>Nutrición de hoy</h3>
+          {menu?.tipo && <span className="small" style={{ color: '#C8F25A' }}>{menu.tipo.nombre}</span>}
+        </div>
+        {menu ? (
+          <>
+            {MEALS.filter(([k]) => menu.comidas[k]).map(([k, l]) => {
+              const c = menu.comidas[k];
+              return (
+                <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 2, borderTop: '1px solid #262A31', paddingTop: 8 }}>
+                  <span className="small muted">{l}</span>
+                  <span style={{ fontSize: 14 }}>{c.nombre}</span>
+                  {c.macros && <span className="small muted">P {Math.round(c.macros.p || 0)} · HC {Math.round(c.macros.h || 0)} · G {Math.round(c.macros.g || 0)} g</span>}
+                </div>
+              );
+            })}
+            {!Object.keys(menu.comidas).length && <span style={{ fontSize: 14, color: '#C3C7CE' }}>Aún no hay menú para hoy en Pautia.</span>}
+            {menu.tipo && planTss > 0 && <span className="small muted">Tu entreno de hoy: {dayType} ({Math.round(planTss)} TSS). Comprueba que el tipo de día de Pautia encaja.</span>}
+            <a href={menu.enlace} style={{ fontSize: 14, fontWeight: 600 }}>Abrir en Pautia (alternativas y recetas) →</a>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 14, color: '#C3C7CE' }}>Día {dayType} según tu entreno. Sigue la pauta de tu nutricionista.</span>
+            <Link href="/ficha" style={{ fontSize: 14, fontWeight: 600 }}>Conectar con Pautia →</Link>
+          </>
+        )}
       </section>
 
       {lastAct && !data.demo && (

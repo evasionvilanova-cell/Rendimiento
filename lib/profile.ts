@@ -4,7 +4,7 @@ import { getJSON, putJSON } from './store';
 // (01/01/2001) que no se usa para nada más. Así no hace falta ninguna base de datos.
 const DATE = '2001-01-01';
 
-export type Profile = { objetivos?: string; carreras?: string; disponibilidad?: string; lesiones?: string; preferencias?: string; otros?: string };
+export type Profile = { objetivos?: string; carreras?: string; disponibilidad?: string; lesiones?: string; preferencias?: string; otros?: string; pautia?: string };
 export const FIELDS: { key: keyof Profile; label: string; hint: string }[] = [
   { key: 'objetivos', label: 'Objetivos', hint: 'Ej.: bajar de 1h25 en la media, subir FTP a 280 W' },
   { key: 'carreras', label: 'Carreras de la temporada', hint: 'Ej.: Mitja de Vilanova (febrero, objetivo A), cicloturista en mayo (B)' },
@@ -12,6 +12,7 @@ export const FIELDS: { key: keyof Profile; label: string; hint: string }[] = [
   { key: 'lesiones', label: 'Lesiones y molestias habituales', hint: 'Ej.: tendinitis rotuliana en 2025, sobrecarga de gemelos' },
   { key: 'preferencias', label: 'Preferencias', hint: 'Ej.: prefiero rodillo entre semana; fuerza martes y jueves' },
   { key: 'otros', label: 'Otros datos', hint: 'Ej.: edad, trabajo con turnos, entreno con mi grupo los domingos' },
+  { key: 'pautia', label: 'Enlace de Pautia', hint: 'Pégalo desde Pautia → «Conectar con Rendimiento»' },
 ];
 
 export async function getProfile(): Promise<Profile> {
@@ -28,6 +29,6 @@ export async function saveProfile(p: Profile) {
 }
 
 export function profileText(p: Profile) {
-  const lines = FIELDS.filter((f) => p[f.key]).map((f) => `${f.label}: ${p[f.key]}`);
+  const lines = FIELDS.filter((f) => p[f.key] && f.key !== 'pautia').map((f) => `${f.label}: ${p[f.key]}`);
   return lines.length ? lines.join('\n') : '(El atleta aún no ha rellenado su ficha.)';
 }

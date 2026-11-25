@@ -2,6 +2,7 @@ import { loadData } from './data';
 import { coachContext } from './summary';
 import { COACH_KNOWLEDGE } from './coach-knowledge';
 import { getProfile, profileText } from './profile';
+import { getPautiaToday, pautiaText } from './pautia';
 
 export type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
@@ -53,7 +54,7 @@ async function askGemini(system: string, messages: ChatMsg[]) {
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
 export async function askCoach(messages: ChatMsg[], workoutId?: string): Promise<string> {
   if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir GEMINI_API_KEY (gratis) o ANTHROPIC_API_KEY en Vercel.';
-  const [data, profile] = await Promise.all([loadData(), getProfile()]);
+  const [data, profile, menu] = await Promise.all([loadData(), getProfile(), getPautiaToday()]);
   let workoutTxt = '';
   if (workoutId) {
     const { loadWorkout, describeWorkout } = await import('./analyze');
@@ -80,6 +81,9 @@ export async function askCoach(messages: ChatMsg[], workoutId?: string): Promise
     ...(workoutTxt
       ? ['=== ESTA CONVERSACIÓN ES SOBRE ESTE ENTRENO CONCRETO ===', 'Céntrate en esta sesión (cómo fue, series, pulso, vatios, ritmo, qué mejorar, cómo recuperar). Usa el resto de sus datos solo como contexto.', workoutTxt, '']
       : []),
+    '=== MENÚ DE HOY (PAUTIA, según su nutricionista) ===',
+    pautiaText(menu),
+    '',
     '=== SUS DATOS ===',
     coachContext(data),
   ].join('\n');
