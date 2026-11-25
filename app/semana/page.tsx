@@ -35,7 +35,7 @@ export default async function Semana() {
     if (d >= data.today) planTss += plan.get(d) || 0;
     const tsb = tsbOf.get(d);
     let note: string | null = null;
-    if (d === data.today) {
+    if (d === data.today && planned.length && !done.length) {
       note = t.status === 'rojo' ? 'Hoy toca aflojar: cambia la sesión por algo suave o descansa.' : t.status === 'amarillo' ? 'Hazla sin forzar.' : t.status === 'verde' ? 'Buen día para apretar.' : null;
     } else if (d > data.today && tsb != null && (plan.get(d) || 0) >= 90 && tsb < -25) {
       note = `Llegarás a esta sesión con mucha fatiga (forma ${fmtSigned(Math.round(tsb))}). Valora pasarla a otro día o recortarla.`;
