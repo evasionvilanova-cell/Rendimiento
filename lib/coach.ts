@@ -1,6 +1,7 @@
 import { loadData } from './data';
 import { coachContext } from './summary';
 import { COACH_KNOWLEDGE } from './coach-knowledge';
+import { getProfile, profileText } from './profile';
 
 export type ChatMsg = { role: 'user' | 'assistant'; content: string };
 
@@ -20,8 +21,8 @@ async function askGemini(system: string, messages: ChatMsg[]) {
   const bodyFor = (model: string) =>
     JSON.stringify(
       model.startsWith('gemma')
-        ? { contents: contents.map((c, i) => (i === 0 ? { ...c, parts: [{ text: system + '\n\n=== PREGUNTA ===\n' + c.parts[0].text }] } : c)), generationConfig: { maxOutputTokens: 1500 } }
-        : { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: 1500 } },
+        ? { contents: contents.map((c, i) => (i === 0 ? { ...c, parts: [{ text: system + '\n\n=== PREGUNTA ===\n' + c.parts[0].text }] } : c)), generationConfig: { maxOutputTokens: 3000 } }
+        : { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: 3000 } },
     );
   let last = '';
   for (const model of models) {
@@ -52,13 +53,23 @@ async function askGemini(system: string, messages: ChatMsg[]) {
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
 export async function askCoach(messages: ChatMsg[]): Promise<string> {
   if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir GEMINI_API_KEY (gratis) o ANTHROPIC_API_KEY en Vercel.';
-  const data = await loadData();
+  const [data, profile] = await Promise.all([loadData(), getProfile()]);
   const system = [
     `Eres el entrenador personal de ${process.env.ATHLETE_NAME || 'Xavi'}, ciclista y corredor que también entrena a otros atletas, así que puedes usar términos técnicos (TSS, CTL, ATL, TSB, FTP, HRV, zonas).`,
     'Respondes en español, de forma directa y práctica, en pocas frases o una lista corta. Basa tus consejos en sus datos reales, que tienes abajo, y di qué dato te lleva a cada conclusión.',
     'No inventes datos que no aparecen. Si falta información, dilo. Si describe dolor fuerte, síntomas de enfermedad o algo médico, recomiéndale consultar a un profesional sanitario.',
     'Sobre nutrición, da orientación general y recuérdale seguir la pauta de su nutricionista.',
     COACH_KNOWLEDGE,
+    '',
+    '=== CREAR ENTRENOS EN SU CALENDARIO ===',
+    'Si te pide que le pongas, programes o crees un entreno (o un plan de varios días), descríbelo brevemente y añade AL FINAL un bloque por cada sesión, exactamente así (JSON en una línea):',
+    '```entreno',
+    '{"date":"YYYY-MM-DD","type":"VirtualRide|Ride|Run|Swim|WeightTraining|Other","name":"Título corto","description":"Calentamiento\\n- 15m 55-65%\\n\\nSerie 3x\\n- 12m 88-93%\\n- 5m 55%\\n\\nVuelta a la calma\\n- 10m 55%"}',
+    '```',
+    'La description usa el formato de intervals.icu (una línea por paso: duración e intensidad en % FTP, zonas Z2, "Z2 HR" o ritmo "4:30/km Pace"; repeticiones con una línea "Título Nx"). Él verá un botón para añadirlo; no digas que ya está creado. No añadas bloques si no te lo pide.',
+    '',
+    '=== SU FICHA DE ATLETA ===',
+    profileText(profile),
     '',
     '=== SUS DATOS ===',
     coachContext(data),

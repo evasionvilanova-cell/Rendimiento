@@ -29,7 +29,9 @@ export async function POST(req: Request) {
       await sendMessage(chatId, weeklyMessage(await loadData()));
     } else {
       await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
-      await sendMessage(chatId, await askCoach([{ role: 'user', content: text }]), false);
+      const reply = await askCoach([{ role: 'user', content: text }]);
+      const hasPlan = /```entreno/.test(reply);
+      await sendMessage(chatId, reply.replace(/```entreno[\s\S]*?```/g, '').trim() + (hasPlan ? '\n\n👉 Abre la pestaña Coach IA de la app para añadir el entreno a tu calendario.' : ''), false);
     }
   } catch (e) {
     await sendMessage(chatId, 'Ha habido un error: ' + (e as Error).message, false);

@@ -4,6 +4,49 @@ import { useEffect, useRef, useState } from 'react';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
+type Workout = { date: string; type: string; name: string; description: string };
+
+// Separa los bloques ```entreno {...}``` que propone el Coach del texto normal
+function splitWorkouts(text: string): { text: string; workouts: Workout[] } {
+  const workouts: Workout[] = [];
+  const clean = text.replace(/```entreno\s*([\s\S]*?)```/g, (_, body: string) => {
+    body
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith('{'))
+      .forEach((l) => {
+        try {
+          const w = JSON.parse(l);
+          if (w.date && w.name) workouts.push(w);
+        } catch {}
+      });
+    return '';
+  });
+  return { text: clean.trim(), workouts };
+}
+
+const dayName = (d: string) => new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(d + 'T12:00:00Z'));
+
+function WorkoutCard({ w }: { w: Workout }) {
+  const [st, setSt] = useState<'idle' | 'saving' | 'ok' | 'err'>('idle');
+  async function add() {
+    setSt('saving');
+    const res = await fetch('/api/plan/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workouts: [{ ...w, duration_min: null }] }) });
+    setSt(res.ok ? 'ok' : 'err');
+  }
+  return (
+    <div className="card stack-sm" style={{ borderColor: '#3B4A1E' }}>
+      <span className="small" style={{ color: '#C8F25A', textTransform: 'capitalize' }}>{dayName(w.date)}</span>
+      <span style={{ fontWeight: 600 }}>{w.name}</span>
+      <span style={{ fontSize: 13, color: '#C3C7CE', whiteSpace: 'pre-line', fontFamily: 'ui-monospace, Menlo, monospace' }}>{w.description}</span>
+      <button type="button" className="primary" onClick={add} disabled={st === 'saving' || st === 'ok'}>
+        {st === 'ok' ? 'Añadido ✓ (llegará a tu Garmin)' : st === 'saving' ? 'Añadiendo…' : 'Añadir a mi calendario'}
+      </button>
+      {st === 'err' && <span className="small bad">No se ha podido añadir.</span>}
+    </div>
+  );
+}
+
 // Muestra negritas (**así**) y cursivas (*así*) de las respuestas
 function Rich({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
@@ -16,7 +59,7 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-const SUGGESTIONS = ['¿Hago las series hoy o mejor mañana?', '¿Por qué me ha bajado el HRV?', '¿Cómo voy para la carrera?', '¿Qué tal ha ido la semana?'];
+const SUGGESTIONS = ['Ponme un entreno de rodillo para mañana', '¿Hago las series hoy o mejor mañana?', '¿Por qué me ha bajado el HRV?', '¿Cómo voy para la carrera?', '¿Qué tal ha ido la semana?'];
 
 export default function CoachChat({ enabled }: { enabled: boolean }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -78,11 +121,19 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
           ))}
         </div>
       )}
-      {msgs.map((m, i) => (
-        <div key={i} className="card" style={{ background: m.role === 'user' ? '#262A31' : '#181B20', alignSelf: m.role === 'user' ? 'flex-end' : 'stretch', maxWidth: m.role === 'user' ? '85%' : undefined, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.5 }}>
-          {m.role === 'assistant' ? <Rich text={m.content} /> : m.content}
-        </div>
-      ))}
+      {msgs.map((m, i) => {
+        const parts = m.role === 'assistant' ? splitWorkouts(m.content) : { text: m.content, workouts: [] };
+        return (
+          <div key={i} className="stack-sm">
+            <div className="card" style={{ background: m.role === 'user' ? '#262A31' : '#181B20', alignSelf: m.role === 'user' ? 'flex-end' : 'stretch', maxWidth: m.role === 'user' ? '85%' : undefined, marginLeft: m.role === 'user' ? 'auto' : undefined, whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.5 }}>
+              {m.role === 'assistant' ? <Rich text={parts.text} /> : m.content}
+            </div>
+            {parts.workouts.map((w, k) => (
+              <WorkoutCard key={k} w={w} />
+            ))}
+          </div>
+        );
+      })}
       {busy && <span className="small muted">Pensando…</span>}
       {err && <span className="small bad">{err}</span>}
       <div ref={end} />

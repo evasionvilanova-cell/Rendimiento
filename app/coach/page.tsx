@@ -13,6 +13,7 @@ export default async function Coach() {
           <Link href="/" style={{ fontSize: 13, textDecoration: 'none' }}>← Hoy</Link>
           <h1>Entrenador IA</h1>
         </div>
+        <Link href="/ficha" className="pill" style={{ height: 40, padding: '0 12px', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>Tu ficha</Link>
       </div>
       <CoachChat enabled={hasCoach()} />
       <TabBar active="/coach" />
