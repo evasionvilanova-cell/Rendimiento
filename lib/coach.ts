@@ -6,12 +6,31 @@ export type ChatMsg = { role: 'user' | 'assistant'; content: string };
 const MODEL = process.env.COACH_MODEL || 'claude-sonnet-5-5';
 
 export function hasCoach() {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY);
+}
+
+/** Gemini (Google AI Studio) tiene un nivel gratuito con límites de peticiones. */
+async function askGemini(system: string, messages: ChatMsg[]) {
+  const model = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY as string, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: messages.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+      generationConfig: { maxOutputTokens: 1500 },
+    }),
+    cache: 'no-store',
+  });
+  if (res.status === 429) throw new Error('Has llegado al límite gratuito de la IA de Google por ahora. Prueba otra vez en un rato.');
+  if (!res.ok) throw new Error(`La IA respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  return (json.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim() || 'No he podido generar una respuesta.';
 }
 
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
 export async function askCoach(messages: ChatMsg[]): Promise<string> {
-  if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir ANTHROPIC_API_KEY en Vercel.';
+  if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir GEMINI_API_KEY (gratis) o ANTHROPIC_API_KEY en Vercel.';
   const data = await loadData();
   const system = [
     `Eres el entrenador personal de ${process.env.ATHLETE_NAME || 'Xavi'}, ciclista y corredor que también entrena a otros atletas, así que puedes usar términos técnicos (TSS, CTL, ATL, TSB, FTP, HRV, zonas).`,
@@ -22,6 +41,8 @@ export async function askCoach(messages: ChatMsg[]): Promise<string> {
     '=== SUS DATOS ===',
     coachContext(data),
   ].join('\n');
+
+  if (!process.env.ANTHROPIC_API_KEY) return askGemini(system, messages);
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

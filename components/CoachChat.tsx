@@ -49,7 +49,7 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
     return (
       <section className="card stack-sm">
         <h3>Entrenador IA desactivado</h3>
-        <span style={{ fontSize: 14, color: '#C3C7CE' }}>Falta añadir la clave ANTHROPIC_API_KEY en Vercel. Pídele a Claude que te guíe.</span>
+        <span style={{ fontSize: 14, color: '#C3C7CE' }}>Falta añadir la clave GEMINI_API_KEY (gratis, de Google AI Studio) en Vercel. Pídele a Claude que te guíe.</span>
       </section>
     );
   }
