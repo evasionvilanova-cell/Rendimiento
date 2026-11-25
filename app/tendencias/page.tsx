@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth';
-import { loadData } from '@/lib/data';
+import { loadData, loadPowerCurves } from '@/lib/data';
+import TabBar from '@/components/TabBar';
 import { scoreDay, fmtSigned } from '@/lib/scores';
 import { hm, shortDate, weekdayShort, addDays } from '@/lib/dates';
-import { LineChart, SleepBars } from '@/components/Charts';
+import { LineChart, SleepBars, PowerCurveChart, wattsAt } from '@/components/Charts';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ const DAYS = 42;
 
 export default async function Tendencias() {
   await requireAuth();
-  const data = await loadData();
+  const [data, pc] = await Promise.all([loadData(), loadPowerCurves()]);
   const W = data.wellness;
   const start = Math.max(0, W.length - DAYS);
   const win = W.slice(start);
@@ -54,6 +55,14 @@ export default async function Tendencias() {
   const sleep14 = W.slice(-14).map((w) => (w.sleepSecs ? w.sleepSecs / 3600 : null));
   const lastHrv7 = hrv7[hrv7.length - 1];
 
+  // FTP a lo largo del tiempo (el que tenía cada actividad)
+  const ftpPts = [...data.activities].reverse().filter((a) => a.icu_ftp).map((a) => ({ d: a.start_date_local.slice(0, 10), v: a.icu_ftp as number }));
+  const ftpNow = ftpPts.length ? ftpPts[ftpPts.length - 1].v : null;
+  const ftpFirst = ftpPts.length ? ftpPts[0].v : null;
+  const weights = W.slice(-90).map((w) => w.weight || null);
+  const wVals = weights.filter((v): v is number => v != null);
+  const weightNow = wVals.length ? wVals[wVals.length - 1] : null;
+  const DUR = [{ s: 5, l: '5 s' }, { s: 60, l: '1 min' }, { s: 300, l: '5 min' }, { s: 1200, l: '20 min' }, { s: 3600, l: '1 h' }];
   const loadMin = Math.max(0, Math.min(...win.map((w) => Math.min(w.ctl ?? 999, w.atl ?? 999))) - 25);
   const loadMax = Math.max(40, ...win.map((w) => Math.max(w.ctl || 0, w.atl || 0))) * 1.1;
   const first = win[0]?.id || data.today;
@@ -146,6 +155,67 @@ export default async function Tendencias() {
       </div>
 
       <section className="card stack">
+        <div className="row">
+          <h2>Curva de potencia (ciclismo)</h2>
+          <div className="legend">
+            <span><span style={{ color: '#C8F25A' }}>━</span> Últimas 6 semanas</span>
+            <span><span style={{ color: '#6B7280' }}>━</span> Últimos 6 meses</span>
+          </div>
+        </div>
+        {pc.recent?.watts.length || pc.season?.watts.length ? (
+          <>
+            <PowerCurveChart
+              label="Mejores vatios por duración: últimas 6 semanas frente a los últimos 6 meses"
+              curves={[
+                ...(pc.season ? [{ ...pc.season, color: '#6B7280', width: 2 }] : []),
+                ...(pc.recent ? [{ ...pc.recent, color: '#C8F25A', width: 3 }] : []),
+              ]}
+            />
+            <div className="kpis" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))' }}>
+              {DUR.map((d) => {
+                const r = wattsAt(pc.recent, d.s);
+                const se = wattsAt(pc.season, d.s);
+                return (
+                  <div key={d.s} className="card tile" style={{ padding: 12 }}>
+                    <span className="small muted">{d.l}</span>
+                    <span className="v" style={{ fontSize: 22 }}>{r ? `${Math.round(r)} W` : '—'}</span>
+                    <span className="small muted">{se ? `mejor 6 m: ${Math.round(se)}` : ''}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <span className="muted small">Aún no hay salidas con potencia en intervals.icu.</span>
+        )}
+      </section>
+
+      <div className="two">
+        <section className="card stack">
+          <div className="row"><h2>FTP</h2><span className="small muted">{ftpNow ? `${ftpNow} W` : ''}{ftpNow && ftpFirst && ftpNow !== ftpFirst ? ` · ${ftpNow > ftpFirst ? '+' : ''}${ftpNow - ftpFirst} W en 4 meses` : ''}</span></div>
+          {ftpPts.length > 1 ? (
+            <LineChart
+              label="Evolución del FTP en los últimos 4 meses"
+              height={160}
+              min={Math.min(...ftpPts.map((p) => p.v)) - 15}
+              max={Math.max(...ftpPts.map((p) => p.v)) + 15}
+              series={[{ values: ftpPts.map((p) => p.v), color: '#C8F25A' }]}
+            />
+          ) : (
+            <span className="muted small">{ftpNow ? `Tu FTP actual es ${ftpNow} W.` : 'Configura tu FTP en intervals.icu para verlo aquí.'}</span>
+          )}
+        </section>
+        <section className="card stack">
+          <div className="row"><h2>Peso · 3 meses</h2><span className="small muted">{weightNow ? `${weightNow.toLocaleString('es-ES')} kg` : ''}{weightNow && ftpNow ? ` · ${(ftpNow / weightNow).toFixed(2).replace('.', ',')} W/kg` : ''}</span></div>
+          {wVals.length > 1 ? (
+            <LineChart label="Evolución del peso en los últimos 3 meses" height={160} min={Math.min(...wVals) - 1} max={Math.max(...wVals) + 1} series={[{ values: weights, color: '#60A5FA' }]} />
+          ) : (
+            <span className="muted small">Pésate con una báscula conectada a Garmin (o anota el peso en Garmin Connect) y aparecerá aquí.</span>
+          )}
+        </section>
+      </div>
+
+      <section className="card stack">
         <h2>Últimos entrenos</h2>
         <div className="tablebox">
           <table>
@@ -175,10 +245,7 @@ export default async function Tendencias() {
         {last && <span className="small muted">Datos de intervals.icu · se actualizan cada 5 minutos.</span>}
       </section>
 
-      <nav className="tabbar" aria-label="Secciones">
-        <Link href="/">Hoy</Link>
-        <Link href="/tendencias" className="on">Tendencias</Link>
-      </nav>
+      <TabBar active="/tendencias" />
     </main>
   );
 }

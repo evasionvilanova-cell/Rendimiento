@@ -75,3 +75,50 @@ export function SleepBars({ hours, need, label }: { hours: (number | null)[]; ne
     </svg>
   );
 }
+
+/** Curva de potencia con eje de tiempo logarítmico. */
+export function PowerCurveChart({ curves, label }: { curves: { secs: number[]; watts: number[]; color: string; width?: number }[]; label: string }) {
+  const W = 1000;
+  const H = 220;
+  const all = curves.flatMap((c) => c.watts.filter((w) => w > 0));
+  if (!all.length) return null;
+  const minS = 5;
+  const maxS = 3600 * 2;
+  const maxW = Math.max(...all) * 1.05;
+  const minW = 0;
+  const x = (s: number) => ((Math.log(Math.max(minS, s)) - Math.log(minS)) / (Math.log(maxS) - Math.log(minS))) * W;
+  const y = (w: number) => H - ((w - minW) / (maxW - minW)) * (H - 8) - 4;
+  const ticks = [5, 60, 300, 1200, 3600];
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H }} role="img" aria-label={label}>
+        {ticks.map((t) => (
+          <line key={t} x1={x(t)} x2={x(t)} y1="0" y2={H} stroke="#262A31" vectorEffect="non-scaling-stroke" />
+        ))}
+        {curves.map((c, i) => {
+          const pts = c.secs.map((s, k) => [s, c.watts[k]] as const).filter(([s, w]) => s >= minS && s <= maxS && w > 0);
+          const d = pts.map(([s, w], k) => `${k ? 'L' : 'M'}${x(s).toFixed(1)},${y(w).toFixed(1)}`).join(' ');
+          return <path key={i} d={d} fill="none" stroke={c.color} strokeWidth={c.width ?? 2.5} vectorEffect="non-scaling-stroke" />;
+        })}
+      </svg>
+      <div style={{ position: 'relative', height: 16 }} className="small muted">
+        {ticks.map((t) => (
+          <span key={t} style={{ position: 'absolute', left: `${(x(t) / W) * 100}%`, transform: 'translateX(-50%)' }}>
+            {t < 60 ? `${t} s` : t < 3600 ? `${t / 60} min` : `${t / 3600} h`}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Valor de una curva a una duración concreta (o el más cercano por debajo). */
+export function wattsAt(c: { secs: number[]; watts: number[] } | null, s: number): number | null {
+  if (!c) return null;
+  let best: number | null = null;
+  c.secs.forEach((sec, i) => {
+    if (sec <= s && c.watts[i] > 0) best = c.watts[i];
+  });
+  const exact = c.secs.indexOf(s);
+  return exact >= 0 && c.watts[exact] > 0 ? c.watts[exact] : best;
+}

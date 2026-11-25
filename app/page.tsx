@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { requireAuth } from '@/lib/auth';
-import { loadData } from '@/lib/data';
+import { loadData, nextRace } from '@/lib/data';
+import TabBar from '@/components/TabBar';
+import RaceCard from '@/components/RaceCard';
 import { computeToday, fmtH, fmtSigned } from '@/lib/scores';
 import { hm, longDate, shortDate } from '@/lib/dates';
 import Ring from '@/components/Ring';
@@ -18,6 +20,7 @@ export default async function Hoy() {
   const t = computeToday(data.wellness, data.activities, data.today);
   const w = data.wellness[data.wellness.length - 1];
   const name = process.env.ATHLETE_NAME || 'Xavi';
+  const race = nextRace(data);
 
   const hrv14 = data.wellness.slice(-14).map((x) => (x.hrv ? x.hrv : null));
   const hrvVals = hrv14.filter((v): v is number => v != null);
@@ -156,10 +159,9 @@ export default async function Hoy() {
         {process.env.NUTRITION_URL && <a href={process.env.NUTRITION_URL} style={{ fontSize: 14, fontWeight: 600 }}>Ver el menú del día →</a>}
       </section>
 
-      <nav className="tabbar" aria-label="Secciones">
-        <Link href="/" className="on">Hoy</Link>
-        <Link href="/tendencias">Tendencias</Link>
-      </nav>
+      {race && <RaceCard data={data} race={race} />}
+
+      <TabBar active="/" />
     </main>
   );
 }

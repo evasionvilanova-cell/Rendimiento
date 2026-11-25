@@ -1,6 +1,6 @@
-import { getActivities, getEvents, getWellness, hasApiKey, type Activity, type PlannedEvent, type Wellness } from './intervals';
+import { getActivities, getEvents, getPowerCurves, getWellness, hasApiKey, type Activity, type PlannedEvent, type PowerCurve, type Wellness } from './intervals';
 import { addDays, todayISO } from './dates';
-import { demoData } from './demo';
+import { demoData, demoPowerCurves } from './demo';
 
 export type AppData = {
   today: string;
@@ -8,6 +8,7 @@ export type AppData = {
   wellness: Wellness[]; // ascendente, último = hoy
   activities: Activity[]; // descendente (más reciente primero)
   planned: PlannedEvent[]; // entrenos previstos para hoy
+  upcoming: PlannedEvent[]; // todo lo planificado desde hoy hasta dentro de 6 meses
   error?: string;
 };
 
@@ -17,16 +18,37 @@ export async function loadData(): Promise<AppData> {
 
   try {
     const [w, a, e] = await Promise.all([
-      getWellness(addDays(today, -100), today),
-      getActivities(addDays(today, -45), today),
-      getEvents(today, today),
+      getWellness(addDays(today, -120), today),
+      getActivities(addDays(today, -120), today),
+      getEvents(today, addDays(today, 180)),
     ]);
     const wellness = [...w].sort((x, y) => x.id.localeCompare(y.id));
     if (!wellness.length || wellness[wellness.length - 1].id !== today) wellness.push({ id: today });
     const activities = [...a].sort((x, y) => y.start_date_local.localeCompare(x.start_date_local));
-    const planned = e.filter((ev) => (ev.category || 'WORKOUT') === 'WORKOUT');
-    return { today, demo: false, wellness, activities, planned };
+    const upcoming = [...e].sort((x, y) => x.start_date_local.localeCompare(y.start_date_local));
+    const planned = upcoming.filter((ev) => ev.start_date_local.slice(0, 10) === today && (ev.category || 'WORKOUT') === 'WORKOUT');
+    return { today, demo: false, wellness, activities, planned, upcoming };
   } catch (err) {
     return { today, demo: true, ...demoData(today), error: (err as Error).message };
   }
+}
+
+/** Curvas de potencia: últimas 6 semanas y últimos 6 meses. */
+export async function loadPowerCurves(): Promise<{ recent: PowerCurve | null; season: PowerCurve | null; demo: boolean }> {
+  if (!hasApiKey()) return { ...demoPowerCurves(), demo: true };
+  try {
+    const [recent, season] = await getPowerCurves(['42d', '180d']);
+    return { recent: recent || null, season: season || null, demo: false };
+  } catch {
+    return { recent: null, season: null, demo: false };
+  }
+}
+
+/** Carrera objetivo: la próxima carrera del calendario de intervals.icu, o la de las variables RACE_NAME / RACE_DATE. */
+export function nextRace(data: AppData): { name: string; date: string } | null {
+  const ev = data.upcoming.find((e) => (e.category || '').startsWith('RACE'));
+  if (ev) return { name: ev.name || 'Carrera', date: ev.start_date_local.slice(0, 10) };
+  const d = process.env.RACE_DATE;
+  if (d && d >= data.today) return { name: process.env.RACE_NAME || 'Carrera objetivo', date: d };
+  return null;
 }

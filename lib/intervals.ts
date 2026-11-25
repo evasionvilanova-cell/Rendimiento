@@ -29,6 +29,8 @@ export type Activity = {
   icu_intensity?: number | null;
   average_heartrate?: number | null;
   decoupling?: number | null;
+  icu_ftp?: number | null;
+  distance?: number | null;
 };
 
 export type PlannedEvent = {
@@ -87,4 +89,15 @@ export async function putWellness(date: string, body: Partial<Wellness>) {
   });
   if (!res.ok) throw new Error(`intervals.icu respondió ${res.status} al guardar`);
   return res.json();
+}
+
+// Curva de potencia (mejores vatios por duración). Respuesta: { list: [{ secs: number[], watts|values: number[] }] }
+export type PowerCurve = { secs: number[]; watts: number[] };
+export async function getPowerCurves(curves: string[], type = 'Ride'): Promise<PowerCurve[]> {
+  const raw = await get<unknown>(`/power-curves?curves=${curves.join(',')}&type=${type}`);
+  const list = (Array.isArray(raw) ? raw : (raw as { list?: unknown[] })?.list) || [];
+  return (list as Record<string, unknown>[]).map((c) => ({
+    secs: (c.secs as number[]) || [],
+    watts: ((c.watts || c.values) as number[]) || [],
+  }));
 }
