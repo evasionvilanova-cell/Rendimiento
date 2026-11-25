@@ -1,9 +1,8 @@
-import { hasApiKey } from './intervals';
+import { getJSON, putJSON } from './store';
 
 // La ficha se guarda en tu propio intervals.icu, en el registro de bienestar de una fecha fija
 // (01/01/2001) que no se usa para nada más. Así no hace falta ninguna base de datos.
 const DATE = '2001-01-01';
-const BASE = 'https://intervals.icu/api/v1';
 
 export type Profile = { objetivos?: string; carreras?: string; disponibilidad?: string; lesiones?: string; preferencias?: string; otros?: string };
 export const FIELDS: { key: keyof Profile; label: string; hint: string }[] = [
@@ -15,21 +14,8 @@ export const FIELDS: { key: keyof Profile; label: string; hint: string }[] = [
   { key: 'otros', label: 'Otros datos', hint: 'Ej.: edad, trabajo con turnos, entreno con mi grupo los domingos' },
 ];
 
-function auth() {
-  return 'Basic ' + Buffer.from('API_KEY:' + process.env.INTERVALS_API_KEY).toString('base64');
-}
-const athlete = () => process.env.INTERVALS_ATHLETE_ID || '0';
-
 export async function getProfile(): Promise<Profile> {
-  if (!hasApiKey()) return {};
-  try {
-    const res = await fetch(`${BASE}/athlete/${athlete()}/wellness/${DATE}`, { headers: { Authorization: auth() }, cache: 'no-store' });
-    if (!res.ok) return {};
-    const w = (await res.json()) as { comments?: string };
-    return w.comments ? (JSON.parse(w.comments) as Profile) : {};
-  } catch {
-    return {};
-  }
+  return (await getJSON<Profile>(DATE)) || {};
 }
 
 export async function saveProfile(p: Profile) {
@@ -38,13 +24,7 @@ export async function saveProfile(p: Profile) {
     const v = (p[f.key] || '').toString().trim().slice(0, 800);
     if (v) clean[f.key] = v;
   });
-  const res = await fetch(`${BASE}/athlete/${athlete()}/wellness/${DATE}`, {
-    method: 'PUT',
-    headers: { Authorization: auth(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comments: JSON.stringify(clean) }),
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`intervals.icu respondió ${res.status} al guardar la ficha`);
+  await putJSON(DATE, clean);
 }
 
 export function profileText(p: Profile) {

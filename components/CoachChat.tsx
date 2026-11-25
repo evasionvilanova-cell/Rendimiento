@@ -71,11 +71,18 @@ export default function CoachChat({ enabled, workoutId, suggestions }: { enabled
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Primero lo guardado en este dispositivo y luego lo del servidor (compartido entre dispositivos)
     try {
       const saved = localStorage.getItem(storeKey);
       if (saved) setMsgs(JSON.parse(saved));
     } catch {}
-  }, []);
+    fetch('/api/coach' + (workoutId ? `?workoutId=${encodeURIComponent(workoutId)}` : ''))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.messages?.length) setMsgs(j.messages);
+      })
+      .catch(() => {});
+  }, [storeKey, workoutId]);
   useEffect(() => {
     try {
       localStorage.setItem(storeKey, JSON.stringify(msgs.slice(-30)));
@@ -151,7 +158,16 @@ export default function CoachChat({ enabled, workoutId, suggestions }: { enabled
         <button type="submit" className="primary" style={{ padding: '0 18px' }} disabled={busy || !text.trim()}>Enviar</button>
       </form>
       {msgs.length > 0 && (
-        <button type="button" className="pill" onClick={() => setMsgs([])}>Nueva conversación</button>
+        <button
+          type="button"
+          className="pill"
+          onClick={() => {
+            setMsgs([]);
+            fetch('/api/coach' + (workoutId ? `?workoutId=${encodeURIComponent(workoutId)}` : ''), { method: 'DELETE' }).catch(() => {});
+          }}
+        >
+          Nueva conversación
+        </button>
       )}
     </div>
   );
