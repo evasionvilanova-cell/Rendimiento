@@ -5,6 +5,7 @@ const TABS = [
   { href: '/semana', label: 'Semana' },
   { href: '/tendencias', label: 'Tendencias' },
   { href: '/informe', label: 'Informe' },
+  { href: '/coach', label: 'Coach IA' },
 ];
 
 export default function TabBar({ active }: { active: string }) {

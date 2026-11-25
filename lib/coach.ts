@@ -1,0 +1,42 @@
+import { loadData } from './data';
+import { coachContext } from './summary';
+
+export type ChatMsg = { role: 'user' | 'assistant'; content: string };
+
+const MODEL = process.env.COACH_MODEL || 'claude-sonnet-5-5';
+
+export function hasCoach() {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+/** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
+export async function askCoach(messages: ChatMsg[]): Promise<string> {
+  if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir ANTHROPIC_API_KEY en Vercel.';
+  const data = await loadData();
+  const system = [
+    `Eres el entrenador personal de ${process.env.ATHLETE_NAME || 'Xavi'}, ciclista y corredor que también entrena a otros atletas, así que puedes usar términos técnicos (TSS, CTL, ATL, TSB, FTP, HRV, zonas).`,
+    'Respondes en español, de forma directa y práctica, en pocas frases o una lista corta. Basa tus consejos en sus datos reales, que tienes abajo, y di qué dato te lleva a cada conclusión.',
+    'No inventes datos que no aparecen. Si falta información, dilo. Si describe dolor fuerte, síntomas de enfermedad o algo médico, recomiéndale consultar a un profesional sanitario.',
+    'Sobre nutrición, da orientación general y recuérdale seguir la pauta de su nutricionista.',
+    '',
+    '=== SUS DATOS ===',
+    coachContext(data),
+  ].join('\n');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY as string,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1000, system, messages: messages.slice(-12) }),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`La IA respondió ${res.status}: ${txt.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { content?: { type: string; text?: string }[] };
+  return (json.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n').trim() || 'No he podido generar una respuesta.';
+}
