@@ -13,19 +13,23 @@ export function hasCoach() {
 /** Gemini (Google AI Studio) tiene un nivel gratuito con límites de peticiones. */
 async function askGemini(system: string, messages: ChatMsg[]) {
   // Si un modelo está saturado (503) se reintenta y se prueba con otro más ligero
-  const models = [process.env.GEMINI_MODEL || 'gemini-flash-latest', 'gemini-flash-lite-latest'];
-  const body = JSON.stringify({
-    systemInstruction: { parts: [{ text: system }] },
-    contents: messages.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-    generationConfig: { maxOutputTokens: 1500 },
-  });
+  const models = [process.env.GEMINI_MODEL || 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemma-3-27b-it'];
+  let limited = false;
+  const contents = messages.slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  // Gemma no admite instrucciones de sistema: se ponen al principio del primer mensaje
+  const bodyFor = (model: string) =>
+    JSON.stringify(
+      model.startsWith('gemma')
+        ? { contents: contents.map((c, i) => (i === 0 ? { ...c, parts: [{ text: system + '\n\n=== PREGUNTA ===\n' + c.parts[0].text }] } : c)), generationConfig: { maxOutputTokens: 1500 } }
+        : { systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: 1500 } },
+    );
   let last = '';
   for (const model of models) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST',
         headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY as string, 'content-type': 'application/json' },
-        body,
+        body: bodyFor(model),
         cache: 'no-store',
       });
       if (res.ok) {
@@ -33,11 +37,15 @@ async function askGemini(system: string, messages: ChatMsg[]) {
         return (json.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim() || 'No he podido generar una respuesta.';
       }
       last = `${res.status}`;
-      if (res.status === 429) throw new Error('Has llegado al límite gratuito de la IA de Google por ahora. Prueba otra vez en un rato.');
+      if (res.status === 429) {
+        limited = true;
+        break; // límite gratuito de este modelo: probar el siguiente
+      }
       if (res.status !== 503 && res.status !== 500) throw new Error(`La IA respondió ${res.status}: ${(await res.text()).slice(0, 200)}`);
       await new Promise((r) => setTimeout(r, 1500));
     }
   }
+  if (limited) throw new Error('Has llegado al límite de preguntas gratis de Google por ahora (se renueva cada minuto y cada día). Espera un poco y vuelve a preguntar.');
   throw new Error(`La IA de Google está saturada ahora mismo (${last}). Vuelve a preguntar en un minuto.`);
 }
 
