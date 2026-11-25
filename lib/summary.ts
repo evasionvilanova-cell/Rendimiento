@@ -4,6 +4,7 @@ import { computeToday, fmtH, fmtSigned } from './scores';
 import { addDays, hm, longDate, weekdayShort } from './dates';
 import { daysBetween, projectLoad } from './plan';
 import { weeklyReport } from './report';
+import { computeAlerts } from './alerts';
 
 const ICON = { verde: '🟢', amarillo: '🟡', rojo: '🔴' } as const;
 const TAG = { verde: 'APRIETA', amarillo: 'MANTÉN', rojo: 'AFLOJA' } as const;
@@ -19,6 +20,7 @@ export function morningMessage(data: AppData) {
     `Recuperación ${t.recovery ?? '—'}% · Sueño ${t.sleep ?? '—'}% · Listo ${t.readiness ?? '—'}%`,
     ...t.reasons.map((r) => `${r.tone === 'bien' ? '✅' : r.tone === 'regular' ? '⚠️' : '❗'} ${r.text}`),
   ];
+  computeAlerts(data.wellness).forEach((a) => lines.push(`${a.level === 'rojo' ? '🚨' : '⚠️'} <b>${a.title}</b>: ${a.text}`));
   if (plan) lines.push('', `🏋️ ${plan.name}${plan.moving_time ? ` · ${hm(plan.moving_time)}` : ''}${plan.icu_training_load ? ` · ${plan.icu_training_load} TSS` : ''}`);
   const race = nextRace(data);
   if (race) lines.push(`🏁 ${race.name}: faltan ${daysBetween(data.today, race.date)} días`);
@@ -58,6 +60,8 @@ export function coachContext(data: AppData) {
     `Porcentajes de hoy: recuperación ${t.recovery ?? '-'}%, sueño ${t.sleep ?? '-'}%, listo para entrenar ${t.readiness ?? '-'}%, semáforo ${t.status ?? 'sin datos'}.`,
     `Rango normal de HRV: ${t.hrvRange ? t.hrvRange.join('–') + ' ms' : 'aún sin calcular'}. Forma (TSB) hoy: ${t.tsb ?? '-'}. FTP: ${ftp ? ftp + ' W' : 'desconocido'}.`,
     `Motivos: ${t.reasons.map((r) => r.text).join('; ')}.`,
+    `Alertas: ${computeAlerts(data.wellness).map((a) => a.title + ' — ' + a.text).join(' | ') || 'ninguna'}.`,
+    `Molestias/notas de los últimos días: ${data.wellness.slice(-7).filter((w) => w.comments).map((w) => `${w.id}: ${w.comments}`).join(' | ') || 'ninguna'}.`,
     '',
     'Bienestar últimos 14 días:',
     ...w14,

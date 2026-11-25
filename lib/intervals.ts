@@ -16,6 +16,7 @@ export type Wellness = {
   stress?: number | null;
   mood?: number | null;
   motivation?: number | null;
+  comments?: string | null;
 };
 
 export type Activity = {

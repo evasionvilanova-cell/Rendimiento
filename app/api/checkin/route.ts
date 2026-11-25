@@ -9,8 +9,9 @@ const FIELDS = ['soreness', 'fatigue', 'stress', 'motivation'] as const;
 // En la app 4 = muy bien; intervals.icu usa 1 = muy bien, así que se invierte.
 export async function POST(req: Request) {
   if (!(await isAuthed())) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  const body = (await req.json()) as Record<string, number>;
-  const out: Record<string, number> = {};
+  const body = (await req.json()) as Record<string, number | string>;
+  const out: Record<string, number | string> = {};
+  if (typeof body.comments === 'string') out.comments = body.comments.slice(0, 500);
   for (const f of FIELDS) {
     const v = Number(body[f]);
     if (v >= 1 && v <= 4) out[f] = 5 - v;

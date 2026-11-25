@@ -4,6 +4,7 @@ import { loadData, nextRace } from '@/lib/data';
 import TabBar from '@/components/TabBar';
 import RaceCard from '@/components/RaceCard';
 import { computeToday, fmtH, fmtSigned } from '@/lib/scores';
+import { computeAlerts } from '@/lib/alerts';
 import { hm, longDate, shortDate } from '@/lib/dates';
 import Ring from '@/components/Ring';
 import CheckIn from '@/components/CheckIn';
@@ -22,6 +23,7 @@ export default async function Hoy() {
   const name = process.env.ATHLETE_NAME || 'Xavi';
   const race = nextRace(data);
   const lastAct = data.activities[0];
+  const alerts = computeAlerts(data.wellness);
 
   const hrv14 = data.wellness.slice(-14).map((x) => (x.hrv ? x.hrv : null));
   const hrvVals = hrv14.filter((v): v is number => v != null);
@@ -61,6 +63,13 @@ export default async function Hoy() {
           {data.error ? `No se ha podido leer intervals.icu (${data.error}). ` : ''}Estás viendo datos de ejemplo. Añade tu clave de intervals.icu en Vercel para ver los tuyos.
         </div>
       )}
+
+      {alerts.map((a, i) => (
+        <div key={i} role="status" className="card stack-sm" style={{ borderColor: a.level === 'rojo' ? '#7A2E2E' : '#6B5520', background: a.level === 'rojo' ? '#2B1616' : '#2A2414' }}>
+          <span style={{ fontWeight: 700, color: a.level === 'rojo' ? '#F87171' : '#F5B83D' }}>⚠ {a.title}</span>
+          <span style={{ fontSize: 14, lineHeight: 1.45 }}>{a.text}</span>
+        </div>
+      ))}
 
       <section className="card rings">
         <Ring value={t.recovery} label="Recuperación" sub="HRV + pulso reposo" />
@@ -134,7 +143,7 @@ export default async function Hoy() {
         <div className="axis"><span>{shortDate(data.wellness[Math.max(0, data.wellness.length - 14)].id)}</span><span>hoy</span></div>
       </section>
 
-      <CheckIn initial={initial} />
+      <CheckIn initial={initial} initialNotes={w.comments || ''} />
 
       <section className="card stack-sm">
         <div className="row">
