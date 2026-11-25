@@ -31,6 +31,14 @@ export type Activity = {
   decoupling?: number | null;
   icu_ftp?: number | null;
   distance?: number | null;
+  paired_event_id?: number | null;
+  description?: string | null;
+  max_heartrate?: number | null;
+  icu_average_watts?: number | null;
+  average_speed?: number | null;
+  total_elevation_gain?: number | null;
+  icu_rpe?: number | null;
+  feel?: number | null;
 };
 
 export type PlannedEvent = {
@@ -114,4 +122,21 @@ export async function createEvents(events: NewEvent[]) {
   });
   if (!res.ok) throw new Error(`intervals.icu respondió ${res.status} al crear los entrenos: ${(await res.text()).slice(0, 200)}`);
   return res.json() as Promise<PlannedEvent[]>;
+}
+
+export type Interval = {
+  type?: string; label?: string | null; moving_time?: number; elapsed_time?: number; distance?: number;
+  average_watts?: number | null; weighted_average_watts?: number | null; average_heartrate?: number | null; max_heartrate?: number | null;
+  intensity?: number | null; average_speed?: number | null; average_cadence?: number | null; decoupling?: number | null;
+};
+export type ActivityDetail = Activity & { icu_intervals?: Interval[] };
+
+export async function getActivity(id: string): Promise<ActivityDetail> {
+  const res = await fetch(`${BASE}/activity/${encodeURIComponent(id)}?intervals=true`, { headers: { Authorization: auth() }, next: { revalidate: 300 } });
+  if (!res.ok) throw new Error(`intervals.icu respondió ${res.status} al leer el entreno`);
+  return res.json() as Promise<ActivityDetail>;
+}
+
+export async function getEvent(id: number | string): Promise<PlannedEvent> {
+  return get<PlannedEvent>(`/events/${id}`);
 }

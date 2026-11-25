@@ -2,7 +2,7 @@ import type { Activity, PlannedEvent, PowerCurve, Wellness } from './intervals';
 import { addDays } from './dates';
 
 // Datos inventados para ver la app funcionando antes de conectar intervals.icu.
-export function demoData(today: string): { wellness: Wellness[]; activities: Activity[]; planned: PlannedEvent[]; upcoming: PlannedEvent[] } {
+export function demoData(today: string): { wellness: Wellness[]; activities: Activity[]; planned: PlannedEvent[]; upcoming: PlannedEvent[]; past: PlannedEvent[] } {
   const days = 100;
   const pat = [70, 0, 90, 60, 100, 40, 170];
   const names = ['Rodaje Z2', 'Descanso', 'Umbral 2 × 20 min', 'Recuperación', 'VO2 5 × 4 min', 'Rodaje suave', 'Salida larga'];
@@ -57,7 +57,13 @@ export function demoData(today: string): { wellness: Wellness[]; activities: Act
     if (t) upcoming.push({ id: 100 + d, category: 'WORKOUT', name: pnames[d % 7], start_date_local: addDays(today, d) + 'T00:00:00', moving_time: t * 55, icu_training_load: t });
   }
   upcoming.push({ id: 999, category: 'RACE_A', name: 'Mitja Marató de Vilanova (ejemplo)', start_date_local: addDays(today, 40) + 'T00:00:00' });
-  return { wellness, activities, planned, upcoming };
+  const past: PlannedEvent[] = [];
+  for (let d = 1; d <= 14; d++) {
+    const t = plan[(70 - d) % 7];
+    if (t) past.push({ id: 500 + d, category: 'WORKOUT', name: pnames[(70 - d) % 7], start_date_local: addDays(today, -d) + 'T00:00:00', moving_time: t * 55, icu_training_load: t });
+  }
+  past.reverse();
+  return { wellness, activities, planned, upcoming, past };
 }
 
 export function demoPowerCurves(): { recent: PowerCurve; season: PowerCurve } {

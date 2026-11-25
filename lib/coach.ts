@@ -64,6 +64,12 @@ export async function askCoach(messages: ChatMsg[]): Promise<string> {
     coachContext(data),
   ].join('\n');
 
+  return aiGenerate(system, messages);
+}
+
+/** Llama a la IA configurada (Claude si hay ANTHROPIC_API_KEY, si no Gemini gratis). */
+export async function aiGenerate(system: string, messages: ChatMsg[], maxTokens = 1000): Promise<string> {
+  if (!hasCoach()) throw new Error('Falta GEMINI_API_KEY o ANTHROPIC_API_KEY en Vercel.');
   if (!process.env.ANTHROPIC_API_KEY) return askGemini(system, messages);
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -73,7 +79,7 @@ export async function askCoach(messages: ChatMsg[]): Promise<string> {
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1000, system, messages: messages.slice(-12) }),
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: messages.slice(-12) }),
     cache: 'no-store',
   });
   if (!res.ok) {

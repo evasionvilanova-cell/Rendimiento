@@ -34,6 +34,7 @@ export function weeklyReport(data: AppData) {
   const cur = period(data, start, end);
   const prev = period(data, addDays(start, -7), addDays(start, -1));
   const lines: string[] = [];
+  const comp = compliance(data, start, end);
 
   if (cur.tss || prev.tss) {
     const ch = prev.tss ? Math.round(((cur.tss - prev.tss) / prev.tss) * 100) : null;
@@ -52,9 +53,40 @@ export function weeklyReport(data: AppData) {
     const d = ((cur.hrv - prev.hrv) / prev.hrv) * 100;
     lines.push(d < -5 ? `Tu HRV medio ha bajado un ${fmt(-d)} %: estás acumulando fatiga.` : d > 5 ? `Tu HRV medio ha subido un ${fmt(d)} %: te estás recuperando bien.` : 'Tu HRV se ha mantenido estable.');
   }
-  return { start, end, cur, prev, lines };
+  if (comp.planned) {
+    lines.push(`Has hecho ${comp.done} de ${comp.planned} sesiones planificadas (${comp.pct} %)${comp.plannedTss ? ` y ${comp.doneTss} de ${comp.plannedTss} TSS previstos` : ''}.`);
+    if (comp.missed.length) lines.push(`Te saltaste: ${comp.missed.join(', ')}.`);
+  }
+  return { start, end, cur, prev, lines, comp };
 }
 
 function fmt(n: number) {
   return (Math.round(n * 10) / 10).toLocaleString('es-ES');
+}
+
+/** Planificado frente a hecho entre dos fechas (incluidas). */
+export function compliance(data: AppData, from: string, to: string) {
+  const plannedEv = [...data.past, ...data.upcoming].filter((e) => {
+    const d = e.start_date_local.slice(0, 10);
+    return (e.category || 'WORKOUT') === 'WORKOUT' && d >= from && d <= to && d <= data.today;
+  });
+  const acts = data.activities.filter((a) => {
+    const d = a.start_date_local.slice(0, 10);
+    return d >= from && d <= to;
+  });
+  const used = new Set<string>();
+  let done = 0;
+  let doneTss = 0;
+  const missed: string[] = [];
+  plannedEv.forEach((e) => {
+    const d = e.start_date_local.slice(0, 10);
+    const match = acts.find((a) => !used.has(a.id) && (a.paired_event_id === e.id || a.start_date_local.slice(0, 10) === d));
+    if (match) {
+      used.add(match.id);
+      done++;
+      doneTss += match.icu_training_load || 0;
+    } else if (d < data.today) missed.push(`${e.name || 'entreno'} (${d.slice(8)}/${d.slice(5, 7)})`);
+  });
+  const plannedTss = Math.round(plannedEv.reduce((s, e) => s + (e.icu_training_load || 0), 0));
+  return { planned: plannedEv.length, done, pct: plannedEv.length ? Math.round((done / plannedEv.length) * 100) : 0, plannedTss, doneTss: Math.round(doneTss), missed };
 }

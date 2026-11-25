@@ -229,7 +229,7 @@ export default async function Tendencias() {
                 return (
                   <tr key={a.id}>
                     <td>{weekdayShort(a.start_date_local.slice(0, 10))}</td>
-                    <td>{a.name || a.type}</td>
+                    <td>{data.demo ? a.name || a.type : <Link href={`/entreno/${a.id}`}>{a.name || a.type}</Link>}</td>
                     <td>{hm(a.moving_time)}</td>
                     <td>{a.icu_training_load ?? '—'}</td>
                     <td>{a.icu_weighted_avg_watts ? `${a.icu_weighted_avg_watts} W` : '—'}</td>

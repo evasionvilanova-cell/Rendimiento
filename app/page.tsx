@@ -21,6 +21,7 @@ export default async function Hoy() {
   const w = data.wellness[data.wellness.length - 1];
   const name = process.env.ATHLETE_NAME || 'Xavi';
   const race = nextRace(data);
+  const lastAct = data.activities[0];
 
   const hrv14 = data.wellness.slice(-14).map((x) => (x.hrv ? x.hrv : null));
   const hrvVals = hrv14.filter((v): v is number => v != null);
@@ -158,6 +159,13 @@ export default async function Hoy() {
         </span>
         {process.env.NUTRITION_URL && <a href={process.env.NUTRITION_URL} style={{ fontSize: 14, fontWeight: 600 }}>Ver el menú del día →</a>}
       </section>
+
+      {lastAct && !data.demo && (
+        <Link href={`/entreno/${lastAct.id}`} className="card stack-sm" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="row"><h3>Último entreno</h3><span className="small" style={{ color: '#C8F25A' }}>Ver análisis →</span></div>
+          <span style={{ fontSize: 15 }}>{lastAct.name || lastAct.type} · {hm(lastAct.moving_time)}{lastAct.icu_training_load ? ` · ${lastAct.icu_training_load} TSS` : ''}</span>
+        </Link>
+      )}
 
       {race && <RaceCard data={data} race={race} />}
 

@@ -9,6 +9,7 @@ export type AppData = {
   activities: Activity[]; // descendente (más reciente primero)
   planned: PlannedEvent[]; // entrenos previstos para hoy
   upcoming: PlannedEvent[]; // todo lo planificado desde hoy hasta dentro de 6 meses
+  past: PlannedEvent[]; // lo planificado en las últimas 2 semanas (para comparar con lo hecho)
   error?: string;
 };
 
@@ -20,14 +21,16 @@ export async function loadData(): Promise<AppData> {
     const [w, a, e] = await Promise.all([
       getWellness(addDays(today, -120), today),
       getActivities(addDays(today, -120), today),
-      getEvents(today, addDays(today, 180)),
+      getEvents(addDays(today, -14), addDays(today, 180)),
     ]);
     const wellness = [...w].sort((x, y) => x.id.localeCompare(y.id));
     if (!wellness.length || wellness[wellness.length - 1].id !== today) wellness.push({ id: today });
     const activities = [...a].sort((x, y) => y.start_date_local.localeCompare(x.start_date_local));
-    const upcoming = [...e].sort((x, y) => x.start_date_local.localeCompare(y.start_date_local));
+    const all = [...e].sort((x, y) => x.start_date_local.localeCompare(y.start_date_local));
+    const upcoming = all.filter((ev) => ev.start_date_local.slice(0, 10) >= today);
+    const past = all.filter((ev) => ev.start_date_local.slice(0, 10) < today);
     const planned = upcoming.filter((ev) => ev.start_date_local.slice(0, 10) === today && (ev.category || 'WORKOUT') === 'WORKOUT');
-    return { today, demo: false, wellness, activities, planned, upcoming };
+    return { today, demo: false, wellness, activities, planned, upcoming, past };
   } catch (err) {
     return { today, demo: true, ...demoData(today), error: (err as Error).message };
   }
