@@ -61,7 +61,9 @@ function Rich({ text }: { text: string }) {
 
 const SUGGESTIONS = ['Ponme un entreno de rodillo para mañana', '¿Hago las series hoy o mejor mañana?', '¿Por qué me ha bajado el HRV?', '¿Cómo voy para la carrera?', '¿Qué tal ha ido la semana?'];
 
-export default function CoachChat({ enabled }: { enabled: boolean }) {
+export default function CoachChat({ enabled, workoutId, suggestions }: { enabled: boolean; workoutId?: string; suggestions?: string[] }) {
+  const storeKey = workoutId ? 'coach-chat-' + workoutId : 'coach-chat';
+  const sugg = suggestions || SUGGESTIONS;
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -70,13 +72,13 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('coach-chat');
+      const saved = localStorage.getItem(storeKey);
       if (saved) setMsgs(JSON.parse(saved));
     } catch {}
   }, []);
   useEffect(() => {
     try {
-      localStorage.setItem('coach-chat', JSON.stringify(msgs.slice(-30)));
+      localStorage.setItem(storeKey, JSON.stringify(msgs.slice(-30)));
     } catch {}
     end.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs]);
@@ -89,7 +91,7 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
     setBusy(true);
     setErr(null);
     try {
-      const res = await fetch('/api/coach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: next }) });
+      const res = await fetch('/api/coach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: next, workoutId }) });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Error');
       setMsgs([...next, { role: 'assistant', content: j.reply }]);
@@ -113,8 +115,8 @@ export default function CoachChat({ enabled }: { enabled: boolean }) {
     <div className="stack">
       {!msgs.length && (
         <div className="stack-sm">
-          <span className="small muted">Pregúntale lo que quieras. Ve tus datos de sueño, HRV, carga y entrenos.</span>
-          {SUGGESTIONS.map((s) => (
+          <span className="small muted">{workoutId ? 'Pregunta lo que quieras sobre este entreno.' : 'Pregúntale lo que quieras. Ve tus datos de sueño, HRV, carga y entrenos.'}</span>
+          {sugg.map((s) => (
             <button key={s} type="button" className="pill" style={{ textAlign: 'left', padding: '0 14px' }} onClick={() => send(s)}>
               {s}
             </button>

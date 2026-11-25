@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth';
 import { loadWorkout } from '@/lib/analyze';
 import { hm, longDate } from '@/lib/dates';
 import Analyze from '@/components/Analyze';
+import CoachChat from '@/components/CoachChat';
+import { hasCoach } from '@/lib/coach';
 import TabBar from '@/components/TabBar';
 
 export const dynamic = 'force-dynamic';
@@ -65,6 +67,14 @@ export default async function Entreno({ params }: { params: Promise<{ id: string
             </section>
           )}
           <Analyze id={id} />
+          <section className="stack-sm">
+            <h3>Habla de este entreno</h3>
+            <CoachChat
+              enabled={hasCoach()}
+              workoutId={id}
+              suggestions={['¿Por qué me subió tanto el pulso?', '¿Cumplí bien las series?', '¿Cómo recupero de esta sesión?', '¿Qué cambio para la próxima vez?']}
+            />
+          </section>
         </>
       )}
       <TabBar active="/tendencias" />

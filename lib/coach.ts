@@ -51,9 +51,15 @@ async function askGemini(system: string, messages: ChatMsg[]) {
 }
 
 /** Pregunta al entrenador IA con tus datos de intervals.icu como contexto. */
-export async function askCoach(messages: ChatMsg[]): Promise<string> {
+export async function askCoach(messages: ChatMsg[], workoutId?: string): Promise<string> {
   if (!hasCoach()) return 'El entrenador IA aún no está activado: falta añadir GEMINI_API_KEY (gratis) o ANTHROPIC_API_KEY en Vercel.';
   const [data, profile] = await Promise.all([loadData(), getProfile()]);
+  let workoutTxt = '';
+  if (workoutId) {
+    const { loadWorkout, describeWorkout } = await import('./analyze');
+    const w = await loadWorkout(workoutId);
+    workoutTxt = describeWorkout(w.act, w.plan);
+  }
   const system = [
     `Eres el entrenador personal de ${process.env.ATHLETE_NAME || 'Xavi'}, ciclista y corredor que también entrena a otros atletas, así que puedes usar términos técnicos (TSS, CTL, ATL, TSB, FTP, HRV, zonas).`,
     'Respondes en español, de forma directa y práctica, en pocas frases o una lista corta. Basa tus consejos en sus datos reales, que tienes abajo, y di qué dato te lleva a cada conclusión.',
@@ -71,6 +77,9 @@ export async function askCoach(messages: ChatMsg[]): Promise<string> {
     '=== SU FICHA DE ATLETA ===',
     profileText(profile),
     '',
+    ...(workoutTxt
+      ? ['=== ESTA CONVERSACIÓN ES SOBRE ESTE ENTRENO CONCRETO ===', 'Céntrate en esta sesión (cómo fue, series, pulso, vatios, ritmo, qué mejorar, cómo recuperar). Usa el resto de sus datos solo como contexto.', workoutTxt, '']
+      : []),
     '=== SUS DATOS ===',
     coachContext(data),
   ].join('\n');
