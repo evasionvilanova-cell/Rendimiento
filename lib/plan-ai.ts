@@ -18,7 +18,9 @@ Lee el documento y devuelve SOLO un JSON con esta forma:
 {"workouts":[{"date":"YYYY-MM-DD","type":"Ride|VirtualRide|Run|Swim|WeightTraining|Walk|Other","name":"título corto","duration_min":90,"description":"...","notes":"dudas o aclaraciones, o vacío"}]}
 
 Reglas:
-- Una entrada por sesión. Si un día tiene dos sesiones, dos entradas. Los días de descanso no se incluyen.
+- Una entrada por sesión. Si un día tiene dos sesiones que hay que hacer las dos (p. ej. mañana y tarde), dos entradas. Los días de descanso no se incluyen.
+- ALTERNATIVAS: si el entrenador da opciones a elegir ("o", "/", "a elegir", "opcional", "entrenamiento cruzado", "entrenament creuat", "cross training"), es UNA sola sesión: crea UNA entrada con type "Other" (o el tipo común si todas las opciones son del mismo deporte), name tipo "Entreno cruzado: natación o bici", y en description pon cada opción en texto ("Opción 1: …" / "Opción 2: …"), sin pasos con guion. Nunca la separes en varias entradas.
+- El documento puede estar en catalán o castellano (p. ej. dilluns=lunes, dimarts=martes, dimecres=miércoles, dijous=jueves, divendres=viernes, dissabte=sábado, diumenge=domingo; escalfament=calentamiento, tornada a la calma=vuelta a la calma, sèries=series, recuperació=recuperación, natació=natación, bicicleta/bici, córrer=correr, força=fuerza, descans=descanso).
 - Fechas: si el documento pone fechas, úsalas. Si solo pone días de la semana (lunes, martes…), asume la semana que empieza el lunes ${mondayOf(today)} salvo que por el contexto sea claramente la siguiente (${addDays(mondayOf(today), 7)}); si dudas, usa la semana que viene y explícalo en "notes".
 - "type": rodillo/indoor = VirtualRide, bici en carretera/MTB = Ride, correr = Run, natación = Swim, gimnasio/fuerza = WeightTraining.
 - "description" en el formato de entrenos estructurados de intervals.icu, en español, una línea por paso:
